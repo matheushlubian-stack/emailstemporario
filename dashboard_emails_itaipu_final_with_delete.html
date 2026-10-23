@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Interativo de E-mails - Itaipu Binacional</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap');
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; }
+        .tab-btn.active { border-bottom: 3px solid #008080; color: #008080; font-weight: 600; }
+        .bg-itaipu-teal { background-color: #008080; }
+        .text-itaipu-teal { color: #008080; }
+        .border-itaipu-teal { border-color: #008080; }
+        .editable-active { outline: 2px dashed #008080; outline-offset: 4px; border-radius: 4px; padding: 6px; background-color: #ffffff !important; }
+        .color-swatch { width: 20px; height: 20px; border-radius: 50%; cursor: pointer; transition: transform 0.15s ease; border: 2px solid white; box-shadow: 0 0 2px rgba(0,0,0,0.3); }
+        .color-swatch:hover { transform: scale(1.2); }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-gray-800">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shadow-sm z-20">
+        <div class="flex items-center space-x-3">
+            <div class="bg-itaipu-teal text-white p-2 rounded-lg font-bold text-xl flex items-center justify-center w-10 h-10 shadow-sm">
+                <i class="fa-solid fa-envelope-open-text"></i>
+            </div>
+            <div>
+                <h1 class="text-base font-bold text-gray-900 leading-tight">Painel Interativo de E-mails - Power Automate</h1>
+                <p class="text-xs text-gray-500">Sistema de Armazenamento Temporário de Materiais (Itaipu Binacional)</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <button onclick="addNewFlowPrompt()" class="bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-300 text-xs px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-folder-plus text-teal-600"></i> Novo Fluxo
+            </button>
+            <button onclick="exportDashboardHtml()" class="bg-teal-700 hover:bg-teal-800 text-white text-xs px-3.5 py-1.5 rounded-md font-semibold flex items-center gap-1.5 shadow-sm transition">
+                <i class="fa-solid fa-download"></i> Exportar Dashboard HTML
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- Sidebar Navigation -->
+        <aside class="w-80 bg-white border-r border-gray-200 flex flex-col z-10 shadow-sm">
+            <div class="p-3 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
+                <div class="relative flex-1">
+                    <input type="text" id="searchInput" onkeyup="filterEmails()" placeholder="Buscar fluxo ou e-mail..." 
+                           class="w-full text-xs pl-8 pr-3 py-1.5 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-teal-600">
+                    <i class="fa-solid fa-search absolute left-2.5 top-2 text-gray-400 text-xs"></i>
+                </div>
+            </div>
+
+            <!-- Email Flow Tree -->
+            <div class="flex-1 overflow-y-auto divide-y divide-gray-100" id="flowTree">
+                <!-- Javascript populates tree -->
+            </div>
+        </aside>
+
+        <!-- Main Viewport -->
+        <main class="flex-1 flex flex-col bg-gray-50 overflow-hidden">
+            
+            <!-- Controls Bar -->
+            <div class="bg-white border-b border-gray-200 px-6 py-2.5 flex items-center justify-between">
+                <div>
+                    <h2 class="text-sm font-bold text-gray-800 flex items-center gap-2" id="currentTitle">
+                        <span>Selecione um e-mail na barra lateral</span>
+                    </h2>
+                    <p class="text-xs text-gray-500 mt-0.5" id="currentSubject">Assunto: -</p>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    
+                    <!-- Formatting Toolbar (Bold, Italic) -->
+                    <div id="formattingToolbar" class="hidden items-center space-x-1 bg-gray-100 px-2 py-1 rounded-md border border-gray-300">
+                        <button onclick="formatText('bold')" class="w-7 h-7 bg-white hover:bg-gray-200 text-gray-800 rounded text-xs font-bold shadow-sm" title="Negrito"><i class="fa-solid fa-bold"></i></button>
+                        <button onclick="formatText('italic')" class="w-7 h-7 bg-white hover:bg-gray-200 text-gray-800 rounded text-xs italic shadow-sm" title="Itálico"><i class="fa-solid fa-italic"></i></button>
+                        <button onclick="formatText('insertUnorderedList')" class="w-7 h-7 bg-white hover:bg-gray-200 text-gray-800 rounded text-xs shadow-sm" title="Lista com Marcadores"><i class="fa-solid fa-list-ul"></i></button>
+                    </div>
+
+                    <!-- Color Picker Palette -->
+                    <div class="flex items-center space-x-1.5 bg-gray-50 px-2 py-1 rounded-lg border border-gray-200" title="Cor do Cabeçalho do E-mail">
+                        <span class="text-[10px] font-bold text-gray-500 uppercase mr-1">Cor Cabeçalho:</span>
+                        <div class="color-swatch bg-[#1a36aa]" onclick="changeHeaderColor('#1a36aa')"></div>
+                        <div class="color-swatch bg-[#1a6b3b]" onclick="changeHeaderColor('#1a6b3b')"></div>
+                        <div class="color-swatch bg-[#b8860b]" onclick="changeHeaderColor('#b8860b')"></div>
+                        <div class="color-swatch bg-[#921d1d]" onclick="changeHeaderColor('#921d1d')"></div>
+                        <div class="color-swatch bg-[#008080]" onclick="changeHeaderColor('#008080')"></div>
+                        <div class="color-swatch bg-[#d97706]" onclick="changeHeaderColor('#d97706')"></div>
+                        <input type="color" id="headerColorInput" onchange="changeHeaderColor(this.value)" class="w-5 h-5 cursor-pointer rounded border-0 p-0 bg-transparent" title="Escolher cor personalizada">
+                    </div>
+
+                    <!-- Add Field Selector -->
+                    <div class="relative inline-block text-left">
+                        <button onclick="toggleFieldDropdown()" class="bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-300 text-xs px-2.5 py-1.5 rounded-md font-semibold flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-plus-circle text-teal-600"></i> Adicionar Campo
+                        </button>
+
+                        <div id="fieldDropdown" class="hidden absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-200 z-50 p-3 max-h-96 overflow-y-auto">
+                            <div class="text-[11px] font-bold text-gray-400 uppercase mb-1">1. Lista de Solicitações (30 campos)</div>
+                            <div class="space-y-0.5 mb-3" id="solicitacoesList"></div>
+
+                            <div class="text-[11px] font-bold text-gray-400 uppercase mb-1">2. Lista de Retiradas (10 campos)</div>
+                            <div class="space-y-0.5" id="retiradasList"></div>
+                        </div>
+                    </div>
+
+                    <!-- View Selector -->
+                    <div class="bg-gray-100 p-1 rounded-lg flex text-xs">
+                        <button id="btnViewVisual" onclick="switchTab('visual')" class="tab-btn active px-2.5 py-1 rounded-md font-medium flex items-center gap-1 transition">
+                            <i class="fa-solid fa-eye"></i> Visualização
+                        </button>
+                        <button id="btnViewCode" onclick="switchTab('code')" class="tab-btn px-2.5 py-1 text-gray-600 hover:text-gray-900 rounded-md font-medium flex items-center gap-1 transition">
+                            <i class="fa-solid fa-code"></i> Código Power Automate
+                        </button>
+                    </div>
+
+                    <!-- Edit Toggle -->
+                    <button id="btnToggleEdit" onclick="toggleEditMode()" class="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs px-2.5 py-1.5 rounded-md font-semibold flex items-center gap-1 transition">
+                        <i class="fa-solid fa-pen-to-square"></i> <span id="lblEditBtn">Ativar Edição</span>
+                    </button>
+
+                    <button onclick="copyCode()" class="bg-teal-700 hover:bg-teal-800 text-white text-xs px-3 py-1.5 rounded-md font-semibold flex items-center gap-1 shadow-sm transition">
+                        <i class="fa-regular fa-copy"></i> Copiar Código HTML
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="flex-1 p-6 overflow-y-auto flex justify-center items-start">
+                
+                <!-- Visual Preview Card -->
+                <div id="visualContainer" class="w-full max-w-2xl bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden transition-all">
+                    <div class="bg-gray-100 border-b border-gray-200 px-4 py-2 text-xs text-gray-600 flex justify-between items-center">
+                        <span class="font-mono"><i class="fa-regular fa-envelope mr-1 text-teal-600"></i> Renderização Simulada (Exemplo Preenchido)</span>
+                        <span id="badgeStatus" class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-semibold">OK</span>
+                    </div>
+
+                    <!-- Email Wrapper -->
+                    <div class="p-6">
+                        <div id="emailCardWrapper" style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 650px; border: 1px solid #dcdcdc; border-radius: 8px; background-color: #fafafa; margin: 0 auto;">
+                            <!-- Original Header Box -->
+                            <div id="emailHeader" style="background-color: #1a36aa; color: #ffffff; padding: 16px 24px; font-size: 18px; font-weight: bold; border-top-left-radius: 7px; border-top-right-radius: 7px;">
+                                <span id="emailHeaderTitle" contenteditable="false" onblur="updateFromVisual()">Cabeçalho do E-mail</span>
+                            </div>
+                            <!-- Original Body Box -->
+                            <div id="emailBodyContainer" style="padding: 24px; color: #333333; font-size: 14px; line-height: 1.6;" contenteditable="false" onblur="updateFromVisual()" onmouseup="saveSelection()" onkeyup="saveSelection()">
+                                <!-- Dynamic Content -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Code View Container -->
+                <div id="codeContainer" class="w-full max-w-3xl h-full hidden flex-col">
+                    <div class="bg-gray-800 text-gray-300 text-xs px-4 py-2 rounded-t-lg flex justify-between items-center font-mono">
+                        <span><i class="fa-solid fa-code mr-1.5 text-teal-400"></i> Código HTML do Power Automate (Com Tags Dinâmicas)</span>
+                        <span class="text-gray-500">utf-8</span>
+                    </div>
+                    <textarea id="rawHtmlTextarea" onkeyup="updateFromCode()" class="w-full flex-1 bg-gray-900 text-teal-300 font-mono text-xs p-4 rounded-b-lg border-0 focus:ring-0 resize-none outline-none leading-relaxed"></textarea>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-gray-900 text-white text-xs px-4 py-3 rounded-lg shadow-xl flex items-center space-x-2 transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+        <i class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toastMsg">Mensagem</span>
+    </div>
+
+    <script>
+        const solicitacoesFields = [["ID", "CIT-000036", "@{triggerBody()?['ID']}"], ["Solicitante", "Camila Retcheski", "@{triggerBody()?['Solicitante/DisplayName']}"], ["Matricula", "41.067", "@{triggerBody()?['Matricula']}"], ["Area", "RSIR.GB", "@{triggerBody()?['Area']}"], ["Suplente", "Luciany dos Santos Franco", "@{triggerBody()?['Suplente/DisplayName']}"], ["MatriculaSupl", "38.912", "@{triggerBody()?['MatriculaSupl']}"], ["DescricaoMaterial", "Camisas polo para evento institucional - 100 unidades", "@{triggerBody()?['DescricaoMaterial']}"], ["Volume", "2 Caixas (0.5 m³)", "@{triggerBody()?['Volume']}"], ["Contrato", "4500081567", "@{triggerBody()?['Contrato']}"], ["HaveraSobressalentes", "Não", "@{triggerBody()?['HaveraSobressalentes']}"], ["TipoArmazenagem", "Coberto", "@{triggerBody()?['TipoArmazenagem']}"], ["Justificativa", "Reaproveitamento do material para confecção e distribuição em novos eventos da diretoria.", "@{triggerBody()?['Justificativa']}"], ["DataSolicitacao", "15/10/2026", "@{triggerBody()?['DataSolicitacao']}"], ["DataPrevReceb", "20/10/2026", "@{triggerBody()?['DataPrevReceb']}"], ["DataLimite", "21/07/2027", "@{triggerBody()?['DataLimite']}"], ["StatusMaterial", "Armazenado", "@{triggerBody()?['StatusMaterial']}"], ["MaterialRecebido", "Sim", "@{triggerBody()?['MaterialRecebido']}"], ["EmailRecebimentoEnviado", "Sim", "@{triggerBody()?['EmailRecebimentoEnviado']}"], ["DataRecebimento", "21/10/2026", "@{triggerBody()?['DataRecebimento']}"], ["AprovacaoMTAA", "Aprovado", "@{triggerBody()?['AprovacaoMTAA']}"], ["EmailResultadoMTAA", "Enviado", "@{triggerBody()?['EmailResultadoMTAA']}"], ["AprovacaoArea", "Aprovado", "@{triggerBody()?['AprovacaoArea']}"], ["Complemento", "Almoxarifado Bloco B - Prateleira 4", "@{triggerBody()?['Complemento']}"], ["JustificProrrogacao", "Atraso na liberação do cronograma do evento pela diretoria solicitante.", "@{triggerBody()?['JustificProrrogacao']}"], ["Prorrogado", "Não", "@{triggerBody()?['Prorrogado']}"], ["DataProrrog", "21/10/2027", "@{triggerBody()?['DataProrrog']}"], ["JustificRejeicao", "Espaço no Almoxarifado Central temporariamente indisponível para este volume de caixas.", "@{triggerBody()?['JustificRejeicao']}"], ["DataAprovacaoArea", "16/10/2026", "@{triggerBody()?['DataAprovacaoArea']}"], ["AprovadorArea", "Josias Aguera da Costa", "@{triggerBody()?['AprovadorArea']}"]];
+        const retiradasFields = [["CIT", "CIT-000036", "@{triggerBody()?['CIT']}"], ["RetiradoPor", "Rodrigo Gomes dos Santos", "@{triggerBody()?['RetiradoPor']}"], ["MatriculaRetirada", "45.621", "@{triggerBody()?['MatriculaRetirada']}"], ["Empresa", "Signify", "@{triggerBody()?['Empresa']}"], ["VinculoAutorizado", "Terceiro", "@{triggerBody()?['VinculoAutorizado']}"], ["DataRetirada", "30/09/2026", "@{triggerBody()?['DataRetirada']}"], ["DescrMatRetirado", "Leader Cable - 4 UN", "@{triggerBody()?['DescrMatRetirado']}"], ["TipoRetirada", "Parcial", "@{triggerBody()?['TipoRetirada']}"], ["Rubrica", "[Assinatura Digital Salva]", "@{triggerBody()?['Rubrica']}"]];
+
+        let emails = [
+            {
+                id: 1,
+                flow: "Notificação Solicitação e Gestores",
+                status: "OK",
+                action: "Send_an_email_Solicitante",
+                subject: "Nova Solicitação de Armazenamento Temporário - CIT 00@{triggerBody()?['ID']}",
+                subjectPreview: "Nova Solicitação de Armazenamento Temporário - CIT 000036",
+                headerTitle: "Nova Solicitação de Armazenamento Temporário",
+                color: "#1a36aa",
+                body: `<p style="margin-top: 0;">Olá,</p><p>Sua nova solicitação de Armazenamento Temporário foi criada.</p><ul style="padding-left: 20px;"><li style="margin-bottom: 6px;"><strong>Solicitação:</strong> CIT-00@{triggerBody()?['ID']}</li><li style="margin-bottom: 6px;"><strong>Solicitante:</strong> @{triggerBody()?['Solicitante/DisplayName']}</li><li style="margin-bottom: 6px;"><strong>Suplente:</strong> @{triggerBody()?['Suplente/DisplayName']}</li><li style="margin-bottom: 6px;"><strong>Material:</strong> @{triggerBody()?['DescricaoMaterial']}</li><li style="margin-bottom: 6px;"><strong>Justificativa:</strong> @{triggerBody()?['Justificativa']}</li><li style="margin-bottom: 6px;"><strong>Data Máxima de Armazenagem:</strong> @{triggerBody()?['DataLimite']}</li></ul><p>Acesse o sistema para acompanhamento.</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`,
+                bodyPreview: `<p style="margin-top: 0;">Olá,</p><p>Sua nova solicitação de Armazenamento Temporário foi criada.</p><ul style="padding-left: 20px;"><li style="margin-bottom: 6px;"><strong>Solicitação:</strong> CIT-000036</li><li style="margin-bottom: 6px;"><strong>Solicitante:</strong> Camila Retcheski</li><li style="margin-bottom: 6px;"><strong>Suplente:</strong> Luciany dos Santos Franco</li><li style="margin-bottom: 6px;"><strong>Material:</strong> Camisas polo para evento institucional - 100 unidades</li><li style="margin-bottom: 6px;"><strong>Justificativa:</strong> Reaproveitamento do material para confecção e distribuição em novos eventos da diretoria.</li><li style="margin-bottom: 6px;"><strong>Data Máxima de Armazenagem:</strong> 21/07/2027</li></ul><p>Acesse o sistema para acompanhamento.</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`
+            },
+            {
+                id: 2,
+                flow: "Notificação Solicitação e Gestores",
+                status: "OK",
+                action: "Send_an_email_Gestores",
+                subject: "Nova Solicitação de Armazenamento Temporário - CIT 00@{triggerBody()?['ID']}",
+                subjectPreview: "Nova Solicitação de Armazenamento Temporário - CIT 000036",
+                headerTitle: "Nova Solicitação de Armazenamento Temporário",
+                color: "#1a36aa",
+                body: `<p style="margin-top: 0;">Olá,</p><p>Uma nova solicitação de Armazenamento Temporário foi criada.</p><ul style="padding-left: 20px;"><li style="margin-bottom: 6px;"><strong>Solicitação:</strong> CIT-00@{triggerBody()?['ID']}</li><li style="margin-bottom: 6px;"><strong>Solicitante:</strong> @{triggerBody()?['Solicitante/DisplayName']}</li><li style="margin-bottom: 6px;"><strong>Suplente:</strong> @{triggerBody()?['Suplente/DisplayName']}</li><li style="margin-bottom: 6px;"><strong>Material:</strong> @{triggerBody()?['DescricaoMaterial']}</li><li style="margin-bottom: 6px;"><strong>Justificativa:</strong> @{triggerBody()?['Justificativa']}</li><li style="margin-bottom: 6px;"><strong>Data Máxima de Armazenagem:</strong> @{triggerBody()?['DataLimite']}</li></ul><p>Acesse o sistema para acompanhamento.</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`,
+                bodyPreview: `<p style="margin-top: 0;">Olá,</p><p>Uma nova solicitação de Armazenamento Temporário foi criada.</p><ul style="padding-left: 20px;"><li style="margin-bottom: 6px;"><strong>Solicitação:</strong> CIT-000036</li><li style="margin-bottom: 6px;"><strong>Solicitante:</strong> Camila Retcheski</li><li style="margin-bottom: 6px;"><strong>Suplente:</strong> Luciany dos Santos Franco</li><li style="margin-bottom: 6px;"><strong>Material:</strong> Camisas polo para evento institucional - 100 unidades</li><li style="margin-bottom: 6px;"><strong>Justificativa:</strong> Reaproveitamento do material para confecção e distribuição em novos eventos da diretoria.</li><li style="margin-bottom: 6px;"><strong>Data Máxima de Armazenagem:</strong> 21/07/2027</li></ul><p>Acesse o sistema para acompanhamento.</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`
+            },
+            {
+                id: 3,
+                flow: "Aprovação Gerencial Solicitante",
+                status: "OK",
+                action: "Send_an_email_Aprovado_Solicitante",
+                subject: "Solicitação de Armazenamento Temporário Aprovada CIT - 00@{triggerBody()?['ID']}",
+                subjectPreview: "Solicitação de Armazenamento Temporário Aprovada CIT - 000036",
+                headerTitle: "Solicitação Aprovada",
+                color: "#1a6b3b",
+                body: `<p style="margin-top: 0;">Olá,</p><p>A solicitação de armazenamento temporário <strong>CIT - 00@{triggerBody()?['ID']}</strong> foi aprovada por seu gestor. Acesse o sistema para acompanhamento.</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`,
+                bodyPreview: `<p style="margin-top: 0;">Olá,</p><p>A solicitação de armazenamento temporário <strong>CIT - 000036</strong> foi aprovada por seu gestor. Acesse o sistema para acompanhamento.</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`
+            },
+            {
+                id: 4,
+                flow: "Aprovação Gerencial Solicitante",
+                status: "OK",
+                action: "Send_an_email_Aprovado_Gestor",
+                subject: "Solicitação de Armazenamento Temporário Aprovada CIT - 00@{triggerBody()?['ID']}",
+                subjectPreview: "Solicitação de Armazenamento Temporário Aprovada CIT - 000036",
+                headerTitle: "Solicitação Aprovada pelo Gestor",
+                color: "#b8860b",
+                body: `<p style="margin-top: 0;">Olá,</p><p>A solicitação de armazenamento temporário <strong>CIT - 00@{triggerBody()?['ID']}</strong> foi aprovada por <strong>@{items('For_each_2')?['responder/displayName']}</strong>, gestor da Área Solicitante (<strong>@{outputs('Get_manager_Gerente_Divisao')?['body/department']}</strong>).</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`,
+                bodyPreview: `<p style="margin-top: 0;">Olá,</p><p>A solicitação de armazenamento temporário <strong>CIT - 000036</strong> foi aprovada por <strong>Josias Aguera da Costa</strong>, gestor da Área Solicitante (<strong>MTAA.DF</strong>).</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`
+            },
+            {
+                id: 5,
+                flow: "Aprovação Gerencial Solicitante",
+                status: "OK",
+                action: "Send_an_email_Rejeitado_Solicitante",
+                subject: "Solicitação de Armazenamento Temporário Rejeitada CIT - 00@{triggerBody()?['ID']}",
+                subjectPreview: "Solicitação de Armazenamento Temporário Rejeitada CIT - 000036",
+                headerTitle: "Solicitação Rejeitada",
+                color: "#921d1d",
+                body: `<p style="margin-top: 0;">Olá,</p><p>A solicitação de armazenamento temporário <strong>CIT - 00@{triggerBody()?['ID']}</strong> foi rejeitada por seu gestor. Acesse o sistema para acompanhamento.</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`,
+                bodyPreview: `<p style="margin-top: 0;">Olá,</p><p>A solicitação de armazenamento temporário <strong>CIT - 000036</strong> foi rejeitada por seu gestor. Acesse o sistema para acompanhamento.</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`
+            },
+            {
+                id: 6,
+                flow: "Aprovação Gerencial Solicitante",
+                status: "OK",
+                action: "Send_an_email_Rejeitado_Gestor",
+                subject: "Solicitação de Armazenamento Temporário Rejeitada CIT - 00@{triggerBody()?['ID']}",
+                subjectPreview: "Solicitação de Armazenamento Temporário Rejeitada CIT - 000036",
+                headerTitle: "Solicitação Rejeitada pelo Gestor",
+                color: "#b8860b",
+                body: `<p style="margin-top: 0;">Olá,</p><p>A solicitação de armazenamento temporário <strong>CIT - 00@{triggerBody()?['ID']}</strong> foi rejeitada por <strong>@{items('For_each_3')?['responder/displayName']}</strong>, gestor da Área Solicitante (<strong>@{outputs('Get_manager_Gerente_Divisao')?['body/department']}</strong>).</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`,
+                bodyPreview: `<p style="margin-top: 0;">Olá,</p><p>A solicitação de armazenamento temporário <strong>CIT - 000036</strong> foi rejeitada por <strong>Josias Aguera da Costa</strong>, gestor da Área Solicitante (<strong>MTAA.DF</strong>).</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`
+            },
+            {
+                id: 7,
+                flow: "Notificação Aprovação MTAA.DF",
+                status: "OK",
+                action: "Send_an_email_Aprovado_com_Material",
+                subject: "Solicitação de Armazenamento Temporário Aprovada - CIT 00@{triggerBody()?['ID']}",
+                subjectPreview: "Solicitação de Armazenamento Temporário Aprovada - CIT 000036",
+                headerTitle: "Solicitação Aprovada - MTAA.DF",
+                color: "#1a6b3b",
+                body: `<p style="margin-top: 0;">Olá,</p><p>A solicitação de armazenamento temporário <strong>CIT - 00@{triggerBody()?['ID']}</strong> foi aprovada por MTAA.DF.</p><p>O material <strong>@{triggerBody()?['DescricaoMaterial']}</strong> já se encontra armazenado no almoxarifado!</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`,
+                bodyPreview: `<p style="margin-top: 0;">Olá,</p><p>A solicitação de armazenamento temporário <strong>CIT - 000036</strong> foi aprovada por MTAA.DF.</p><p>O material <strong>Camisas polo para evento institucional - 100 unidades</strong> já se encontra armazenado no almoxarifado!</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`
+            },
+            {
+                id: 8,
+                flow: "Notificação Aprovação MTAA.DF",
+                status: "OK",
+                action: "Send_an_email_Aprovado_sem_Material",
+                subject: "Solicitação de Armazenamento Temporário Aprovada - CIT 00@{triggerBody()?['ID']}",
+                subjectPreview: "Solicitação de Armazenamento Temporário Aprovada - CIT 000036",
+                headerTitle: "Solicitação Aprovada - MTAA.DF",
+                color: "#1a6b3b",
+                body: `<p style="margin-top: 0;">Olá,</p><p>A solicitação de armazenamento temporário <strong>CIT - 00@{triggerBody()?['ID']}</strong> foi aprovada por MTAA.DF.</p><p>O material <strong>@{triggerBody()?['DescricaoMaterial']}</strong> já pode ser entregue no almoxarifado!</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`,
+                bodyPreview: `<p style="margin-top: 0;">Olá,</p><p>A solicitação de armazenamento temporário <strong>CIT - 000036</strong> foi aprovada por MTAA.DF.</p><p>O material <strong>Camisas polo para evento institucional - 100 unidades</strong> já pode ser entregue no almoxarifado!</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`
+            },
+            {
+                id: 9,
+                flow: "Notificação Aprovação MTAA.DF",
+                status: "OK",
+                action: "Send_an_email_Rejeitado_com_Material",
+                subject: "Solicitação de Armazenamento Temporário Rejeitada - CIT 00@{triggerBody()?['ID']}",
+                subjectPreview: "Solicitação de Armazenamento Temporário Rejeitada - CIT 000036",
+                headerTitle: "Solicitação Rejeitada - MTAA.DF",
+                color: "#921d1d",
+                body: `<p style="margin-top: 0;">Olá,</p><p>A solicitação de armazenamento temporário <strong>CIT - 00@{triggerBody()?['ID']}</strong> foi rejeitada por MTAA.DF.</p><p style="background-color: #f8d7da; border-left: 4px solid #921d1d; padding: 10px 14px; margin: 15px 0; border-radius: 4px; color: #721c24;"><strong>Motivo:</strong> @{triggerBody()?['JustificRejeicao']}</p><p>O material <strong>@{triggerBody()?['DescricaoMaterial']}</strong> se encontra armazenado no almoxarifado, favor retirá-lo em 15 dias. Caso não seja retirado, o mesmo será destinado ao descarte!</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`,
+                bodyPreview: `<p style="margin-top: 0;">Olá,</p><p>A solicitação de armazenamento temporário <strong>CIT - 000036</strong> foi rejeitada por MTAA.DF.</p><p style="background-color: #f8d7da; border-left: 4px solid #921d1d; padding: 10px 14px; margin: 15px 0; border-radius: 4px; color: #721c24;"><strong>Motivo:</strong> Espaço no Almoxarifado Central temporariamente indisponível para este volume de caixas.</p><p>O material <strong>Camisas polo para evento institucional - 100 unidades</strong> se encontra armazenado no almoxarifado, favor retirá-lo em 15 dias. Caso não seja retirado, o mesmo será destinado ao descarte!</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`
+            },
+            {
+                id: 10,
+                flow: "Notificação Aprovação MTAA.DF",
+                status: "OK",
+                action: "Send_an_email_Rejeitado_sem_Material_",
+                subject: "Solicitação de Armazenamento Temporário Rejeitada - CIT 00@{triggerBody()?['ID']}",
+                subjectPreview: "Solicitação de Armazenamento Temporário Rejeitada - CIT 000036",
+                headerTitle: "Solicitação Rejeitada - MTAA.DF",
+                color: "#921d1d",
+                body: `<p style="margin-top: 0;">Olá,</p><p>A solicitação de armazenamento temporário <strong>CIT - 00@{triggerBody()?['ID']}</strong> foi rejeitada por MTAA.DF.</p><p style="background-color: #f8d7da; border-left: 4px solid #921d1d; padding: 10px 14px; margin: 15px 0; border-radius: 4px; color: #721c24;"><strong>Motivo:</strong> @{triggerBody()?['JustificRejeicao']}</p><p>O material <strong>@{triggerBody()?['DescricaoMaterial']}</strong> não poderá ser armazenado no almoxarifado!</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`,
+                bodyPreview: `<p style="margin-top: 0;">Olá,</p><p>A solicitação de armazenamento temporário <strong>CIT - 000036</strong> foi rejeitada por MTAA.DF.</p><p style="background-color: #f8d7da; border-left: 4px solid #921d1d; padding: 10px 14px; margin: 15px 0; border-radius: 4px; color: #721c24;"><strong>Motivo:</strong> Espaço no Almoxarifado Central temporariamente indisponível para este volume de caixas.</p><p>O material <strong>Camisas polo para evento institucional - 100 unidades</strong> não poderá ser armazenado no almoxarifado!</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`
+            },
+            {
+                id: 11,
+                flow: "Notificação de Recebimento",
+                status: "OK",
+                action: "Send_an_email_Material_Recebido",
+                subject: "Material Recebido Armazenamento Temporário - CIT-00@{triggerBody()?['ID']}",
+                subjectPreview: "Material Recebido Armazenamento Temporário - CIT-000036",
+                headerTitle: "Recebimento de Material",
+                color: "#1a36aa",
+                body: `<p style="margin-top: 0;">Olá,</p><p>Informamos que o material abaixo foi recebido e armazenado com sucesso.</p><ul style="padding-left: 20px;"><li style="margin-bottom: 6px;"><strong>CIT:</strong> CIT-00@{triggerBody()?['ID']}</li><li style="margin-bottom: 6px;"><strong>Material:</strong> @{triggerBody()?['DescricaoMaterial']}</li><li style="margin-bottom: 6px;"><strong>Data de Recebimento:</strong> @{triggerBody()?['DataRecebimento']}</li><li style="margin-bottom: 6px;"><strong>Status:</strong> Armazenado</li></ul><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`,
+                bodyPreview: `<p style="margin-top: 0;">Olá,</p><p>Informamos que o material abaixo foi recebido e armazenado com sucesso.</p><ul style="padding-left: 20px;"><li style="margin-bottom: 6px;"><strong>CIT:</strong> CIT-000036</li><li style="margin-bottom: 6px;"><strong>Material:</strong> Camisas polo para evento institucional - 100 unidades</li><li style="margin-bottom: 6px;"><strong>Data de Recebimento:</strong> 21/10/2026</li><li style="margin-bottom: 6px;"><strong>Status:</strong> Armazenado</li></ul><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`
+            },
+            {
+                id: 12,
+                flow: "Notificação Retirada Realizada",
+                status: "Sugestão",
+                action: "Send_an_email_Retirada_Notificacao",
+                subject: "Retirada de Material Realizada - CIT-00@{triggerBody()?['CIT']}",
+                subjectPreview: "Retirada de Material Realizada - CIT-000036",
+                headerTitle: "Comprovante de Retirada de Material",
+                color: "#008080",
+                body: `<p style="margin-top: 0;">Olá,</p><p>Informamos que uma retirada de material vinculada ao <strong>CIT-00@{triggerBody()?['CIT']}</strong> foi realizada com sucesso no almoxarifado.</p><ul style="padding-left: 20px;"><li style="margin-bottom: 6px;"><strong>Retirado Por:</strong> @{triggerBody()?['RetiradoPor']} (Matrícula: @{triggerBody()?['MatriculaRetirada']})</li><li style="margin-bottom: 6px;"><strong>Empresa / Vínculo:</strong> @{triggerBody()?['Empresa']} (@{triggerBody()?['VinculoAutorizado']})</li><li style="margin-bottom: 6px;"><strong>Data da Retirada:</strong> @{triggerBody()?['DataRetirada']}</li><li style="margin-bottom: 6px;"><strong>Tipo de Retirada:</strong> @{triggerBody()?['TipoRetirada']}</li><li style="margin-bottom: 6px;"><strong>Itens Retirados:</strong> @{triggerBody()?['DescrMatRetirado']}</li></ul><p>O registro e a assinatura foram salvos no sistema para controle e auditoria.</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`,
+                bodyPreview: `<p style="margin-top: 0;">Olá,</p><p>Informamos que uma retirada de material vinculada ao <strong>CIT-000036</strong> foi realizada com sucesso no almoxarifado.</p><ul style="padding-left: 20px;"><li style="margin-bottom: 6px;"><strong>Retirado Por:</strong> Rodrigo Gomes dos Santos (Matrícula: 45.621)</li><li style="margin-bottom: 6px;"><strong>Empresa / Vínculo:</strong> Signify (Terceiro)</li><li style="margin-bottom: 6px;"><strong>Data da Retirada:</strong> 30/09/2026</li><li style="margin-bottom: 6px;"><strong>Tipo de Retirada:</strong> Parcial</li><li style="margin-bottom: 6px;"><strong>Itens Retirados:</strong> Leader Cable - 4 UN</li></ul><p>O registro e a assinatura foram salvos no sistema para controle e auditoria.</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`
+            },
+            {
+                id: 13,
+                flow: "Notificação Prorrogação",
+                status: "Sugestão",
+                action: "Send_an_email_Prorrogacao_Solicitada",
+                subject: "Solicitação de Prorrogação de Prazo - CIT-00@{triggerBody()?['ID']}",
+                subjectPreview: "Solicitação de Prorrogação de Prazo - CIT-000036",
+                headerTitle: "Solicitação de Prorrogação de Armazenamento",
+                color: "#d97706",
+                body: `<p style="margin-top: 0;">Olá,</p><p>Uma nova solicitação de prorrogação de permanência foi registrada no sistema para o material <strong>CIT-00@{triggerBody()?['ID']}</strong>.</p><ul style="padding-left: 20px;"><li style="margin-bottom: 6px;"><strong>Solicitante:</strong> @{triggerBody()?['Solicitante/DisplayName']} (Área: @{triggerBody()?['Area']})</li><li style="margin-bottom: 6px;"><strong>Material:</strong> @{triggerBody()?['DescricaoMaterial']}</li><li style="margin-bottom: 6px;"><strong>Nova Data Solicitada:</strong> @{triggerBody()?['DataProrrog']}</li><li style="margin-bottom: 6px;"><strong>Justificativa da Prorrogação:</strong> @{triggerBody()?['JustificProrrogacao']}</li></ul><p>A solicitação aguarda análise e aprovação da equipe MTAA.DF.</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`,
+                bodyPreview: `<p style="margin-top: 0;">Olá,</p><p>Uma nova solicitação de prorrogação de permanência foi registrada no sistema para o material <strong>CIT-000036</strong>.</p><ul style="padding-left: 20px;"><li style="margin-bottom: 6px;"><strong>Solicitante:</strong> Camila Retcheski (Área: RSIR.GB)</li><li style="margin-bottom: 6px;"><strong>Material:</strong> Camisas polo para evento institucional - 100 unidades</li><li style="margin-bottom: 6px;"><strong>Nova Data Solicitada:</strong> 21/10/2027</li><li style="margin-bottom: 6px;"><strong>Justificativa da Prorrogação:</strong> Atraso na liberação do cronograma do evento pela diretoria solicitante.</li></ul><p>A solicitação aguarda análise e aprovação da equipe MTAA.DF.</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`
+            },
+            {
+                id: 14,
+                flow: "Fluxo de Vencimento Próximo",
+                status: "Sugestão",
+                action: "Send_an_email_Aviso_Vencimento_Proximo",
+                subject: "Aviso: Armazenamento Próximo do Vencimento - CIT-00@{items('Apply_to_each')?['ID']}",
+                subjectPreview: "Aviso: Armazenamento Próximo do Vencimento - CIT-000036",
+                headerTitle: "Aviso de Vencimento Próximo",
+                color: "#1a36aa",
+                body: `<p style="margin-top: 0;">Olá, <strong>@{items('Apply_to_each')?['Solicitante/DisplayName']}</strong>,</p><p>Lembramos que o prazo limite para armazenamento do material referente ao <strong>CIT-00@{items('Apply_to_each')?['ID']}</strong> vence em breve.</p><ul style="padding-left: 20px;"><li style="margin-bottom: 6px;"><strong>Material:</strong> @{items('Apply_to_each')?['DescricaoMaterial']}</li><li style="margin-bottom: 6px;"><strong>Data Limite do Armazenamento:</strong> @{items('Apply_to_each')?['DataLimite']}</li><li style="margin-bottom: 6px;"><strong>Área Responsável:</strong> @{items('Apply_to_each')?['Area']}</li></ul><p>Por favor, providencie a retirada do material ou solicite a prorrogação do prazo no sistema antes da data limite para evitar pendências no cadastro.</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`,
+                bodyPreview: `<p style="margin-top: 0;">Olá, <strong>Camila Retcheski</strong>,</p><p>Lembramos que o prazo limite para armazenamento do material referente ao <strong>CIT-000036</strong> vence em breve.</p><ul style="padding-left: 20px;"><li style="margin-bottom: 6px;"><strong>Material:</strong> Camisas polo para evento institucional - 100 unidades</li><li style="margin-bottom: 6px;"><strong>Data Limite do Armazenamento:</strong> 21/07/2027</li><li style="margin-bottom: 6px;"><strong>Área Responsável:</strong> RSIR.GB</li></ul><p>Por favor, providencie a retirada do material ou solicite a prorrogação do prazo no sistema antes da data limite para evitar pendências no cadastro.</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`
+            },
+            {
+                id: 15,
+                flow: "Fluxo Cobrança Material Vencido",
+                status: "Sugestão",
+                action: "Send_an_email_Cobranca_Material_Vencido",
+                subject: "URGENTE: Material com Prazo de Armazenamento Vencido - CIT-00@{items('Apply_to_each')?['ID']}",
+                subjectPreview: "URGENTE: Material com Prazo de Armazenamento Vencido - CIT-000036",
+                headerTitle: "Alerta: Armazenamento Vencido",
+                color: "#dc2626",
+                body: `<p style="margin-top: 0;">Prezado(a) <strong>@{items('Apply_to_each')?['Solicitante/DisplayName']}</strong> e Gestor de Área,</p><p>Identificamos que o prazo autorizado de armazenamento temporário para a solicitação <strong>CIT-00@{items('Apply_to_each')?['ID']}</strong> expirou e o material ainda permanece no almoxarifado.</p><ul style="padding-left: 20px;"><li style="margin-bottom: 6px;"><strong>Material:</strong> @{items('Apply_to_each')?['DescricaoMaterial']}</li><li style="margin-bottom: 6px;"><strong>Data Limite Expirada:</strong> @{items('Apply_to_each')?['DataLimite']}</li><li style="margin-bottom: 6px;"><strong>Contrato Relacionado:</strong> @{items('Apply_to_each')?['Contrato']}</li></ul><div style="background-color: #fee2e2; border-left: 4px solid #dc2626; padding: 12px; margin: 15px 0; color: #991b1b; border-radius: 4px;"><strong>Ação necessária:</strong> Acesse o sistema imediatamente para registrar a retirada do material ou formalizar a justificativa de prorrogação.</div><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`,
+                bodyPreview: `<p style="margin-top: 0;">Prezado(a) <strong>Camila Retcheski</strong> e Gestor de Área,</p><p>Identificamos que o prazo autorizado de armazenamento temporário para a solicitação <strong>CIT-000036</strong> expirou e o material ainda permanece no almoxarifado.</p><ul style="padding-left: 20px;"><li style="margin-bottom: 6px;"><strong>Material:</strong> Camisas polo para evento institucional - 100 unidades</li><li style="margin-bottom: 6px;"><strong>Data Limite Expirada:</strong> 21/07/2027</li><li style="margin-bottom: 6px;"><strong>Contrato Relacionado:</strong> 4500081567</li></ul><div style="background-color: #fee2e2; border-left: 4px solid #dc2626; padding: 12px; margin: 15px 0; color: #991b1b; border-radius: 4px;"><strong>Ação necessária:</strong> Acesse o sistema imediatamente para registrar a retirada do material ou formalizar a justificativa de prorrogação.</div><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`
+            },
+            {
+                id: 16,
+                flow: "Fluxo Cobrança Material Encerrado / Descarte",
+                status: "Sugestão",
+                action: "Send_an_email_Aviso_Destinacao_Descarte",
+                subject: "Notificação Final: Destinação para Descarte / Encerramento - CIT-00@{items('Apply_to_each')?['ID']}",
+                subjectPreview: "Notificação Final: Destinação para Descarte / Encerramento - CIT-000036",
+                headerTitle: "Notificação Final de Descarte / Encerramento",
+                color: "#7c2d12",
+                body: `<p style="margin-top: 0;">Aos cuidados de <strong>@{items('Apply_to_each')?['Solicitante/DisplayName']}</strong> e Gestão da Área <strong>@{items('Apply_to_each')?['Area']}</strong>,</p><p>Após sucessivas cobranças e esgotamento do prazo de tolerância, o processo referente ao <strong>CIT-00@{items('Apply_to_each')?['ID']}</strong> foi encaminhado para fase final de encerramento.</p><ul style="padding-left: 20px;"><li style="margin-bottom: 6px;"><strong>Material:</strong> @{items('Apply_to_each')?['DescricaoMaterial']}</li><li style="margin-bottom: 6px;"><strong>Status do Processo:</strong> Liberação para Descarte / Encerramento</li><li style="margin-bottom: 6px;"><strong>Justificativa de Rejeição/Encerramento:</strong> @{items('Apply_to_each')?['JustificRejeicao']}</li></ul><p>Caso o material não seja recolhido nas próximas 48 horas, o procedimento operacional padrão para destinação de resíduos/descarte será iniciado pela MTAA.DF.</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`,
+                bodyPreview: `<p style="margin-top: 0;">Aos cuidados de <strong>Camila Retcheski</strong> e Gestão da Área <strong>RSIR.GB</strong>,</p><p>Após sucessivas cobranças e esgotamento do prazo de tolerância, o processo referente ao <strong>CIT-000036</strong> foi encaminhado para fase final de encerramento.</p><ul style="padding-left: 20px;"><li style="margin-bottom: 6px;"><strong>Material:</strong> Camisas polo para evento institucional - 100 unidades</li><li style="margin-bottom: 6px;"><strong>Status do Processo:</strong> Liberação para Descarte / Encerramento</li><li style="margin-bottom: 6px;"><strong>Justificativa de Rejeição/Encerramento:</strong> Espaço no Almoxarifado Central temporariamente indisponível para este volume de caixas.</li></ul><p>Caso o material não seja recolhido nas próximas 48 horas, o procedimento operacional padrão para destinação de resíduos/descarte será iniciado pela MTAA.DF.</p><br><p style="margin-bottom: 0;">Atenciosamente,<br><br>MTAA.DF<br>Armazenamento Temporário</p>`
+            }
+        ];
+
+        let currentEmailIndex = 0;
+        let currentTab = 'visual';
+        let isEditMode = false;
+        let savedRange = null;
+
+        function initDropdown() {
+            const solEl = document.getElementById('solicitacoesList');
+            const retEl = document.getElementById('retiradasList');
+
+            solEl.innerHTML = solicitacoesFields.map(f => `
+                <div onclick="insertFieldAtCursor('${f[0]}', '${f[1]}', '${f[2]}')" class="px-2 py-1 hover:bg-teal-50 cursor-pointer rounded flex justify-between items-center text-xs">
+                    <span class="font-bold text-teal-800">${f[0]}</span>
+                    <span class="text-[10px] text-gray-400 font-mono truncate max-w-[120px]">${f[1]}</span>
+                </div>
+            `).join('');
+
+            retEl.innerHTML = retiradasFields.map(f => `
+                <div onclick="insertFieldAtCursor('${f[0]}', '${f[1]}', '${f[2]}')" class="px-2 py-1 hover:bg-teal-50 cursor-pointer rounded flex justify-between items-center text-xs">
+                    <span class="font-bold text-teal-800">${f[0]}</span>
+                    <span class="text-[10px] text-gray-400 font-mono truncate max-w-[120px]">${f[1]}</span>
+                </div>
+            `).join('');
+        }
+
+        function toggleFieldDropdown() {
+            if (!isEditMode) {
+                alert("Por favor, ative o 'Modo Edição' antes de inserir um campo.");
+                return;
+            }
+            saveSelection();
+            document.getElementById('fieldDropdown').classList.toggle('hidden');
+        }
+
+        function saveSelection() {
+            const sel = window.getSelection();
+            if (sel.rangeCount > 0) {
+                const range = sel.getRangeAt(0);
+                const bodyContainer = document.getElementById('emailBodyContainer');
+                if (bodyContainer.contains(range.commonAncestorContainer)) {
+                    savedRange = range;
+                }
+            }
+        }
+
+        function formatText(command) {
+            if (!isEditMode) {
+                alert("Ative o 'Modo Edição' primeiro.");
+                return;
+            }
+            const bodyContainer = document.getElementById('emailBodyContainer');
+            bodyContainer.focus();
+            
+            const sel = window.getSelection();
+            if (savedRange) {
+                sel.removeAllRanges();
+                sel.addRange(savedRange);
+            }
+
+            document.execCommand(command, false, null);
+            saveSelection();
+            updateFromVisual();
+        }
+
+        function insertFieldAtCursor(fieldName, sampleVal, paCode) {
+            document.getElementById('fieldDropdown').classList.add('hidden');
+            
+            if (!isEditMode) {
+                alert("Ative o 'Modo Edição' primeiro.");
+                return;
+            }
+
+            const bodyContainer = document.getElementById('emailBodyContainer');
+            bodyContainer.focus();
+
+            const sel = window.getSelection();
+            if (savedRange) {
+                sel.removeAllRanges();
+                sel.addRange(savedRange);
+            }
+
+            const span = document.createElement('strong');
+            span.innerHTML = `${fieldName}: ${sampleVal}`;
+
+            if (sel.rangeCount > 0) {
+                const range = sel.getRangeAt(0);
+                range.deleteContents();
+                range.insertNode(span);
+                
+                range.setStartAfter(span);
+                range.setEndAfter(span);
+                sel.removeAllRanges();
+                sel.addRange(range);
+            } else {
+                bodyContainer.appendChild(span);
+            }
+
+            saveSelection();
+            updateFromVisual();
+            showToast(`Campo '${fieldName}' inserido no cursor!`);
+        }
+
+        function initTree() {
+            const container = document.getElementById('flowTree');
+            container.innerHTML = '';
+
+            const grouped = {};
+            emails.forEach((e, idx) => {
+                if (!grouped[e.flow]) grouped[e.flow] = [];
+                grouped[e.flow].push({ ...e, globalIndex: idx });
+            });
+
+            for (const [flowName, items] of Object.entries(grouped)) {
+                const isOK = items.every(i => i.status === 'OK');
+                const flowGroup = document.createElement('div');
+                flowGroup.className = 'flow-group';
+
+                const statusBadge = isOK 
+                    ? '<span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">OK</span>'
+                    : '<span class="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">SUGESTÃO</span>';
+
+                flowGroup.innerHTML = `
+                    <div class="p-3 bg-gray-50 hover:bg-gray-100 cursor-pointer flex justify-between items-center border-b border-gray-100 select-none group">
+                        <div class="flex items-center space-x-2 overflow-hidden flex-1" onclick="toggleGroup(this)">
+                            <i class="fa-solid fa-chevron-down text-xs text-gray-400 transition-transform duration-200"></i>
+                            <span class="text-xs font-bold text-gray-700 truncate">${flowName}</span>
+                        </div>
+                        <div class="flex items-center space-x-1.5">
+                            ${statusBadge}
+                            <button onclick="event.stopPropagation(); addNewEmailPrompt('${flowName}')" title="Inserir Novo E-mail neste Fluxo" class="text-teal-600 hover:text-teal-800 p-1 text-xs opacity-80 hover:opacity-100">
+                                <i class="fa-solid fa-plus-circle"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="group-items divide-y divide-gray-50">
+                        ${items.map(item => `
+                            <div class="email-item pl-7 pr-3 py-2.5 hover:bg-teal-50 cursor-pointer text-xs flex justify-between items-center transition ${item.globalIndex === currentEmailIndex ? 'bg-teal-50 border-l-4 border-teal-600 text-teal-900 font-semibold' : 'text-gray-600'}"
+                                 id="item-${item.globalIndex}" onclick="selectEmail(${item.globalIndex})">
+                                <div class="truncate pr-2 flex items-center">
+                                    <i class="fa-regular fa-file-code mr-1.5 text-gray-400"></i>
+                                    <span class="truncate">${item.action.replace('Send_an_email_', '').replace(/_/g, ' ')}</span>
+                                </div>
+                                <div class="flex items-center space-x-1.5 flex-shrink-0">
+                                    <span class="text-[9px] px-1.5 py-0.5 rounded ${item.status === 'OK' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">
+                                        ${item.status}
+                                    </span>
+                                    <button onclick="event.stopPropagation(); deleteEmail(${item.globalIndex})" title="Excluir E-mail" class="text-gray-400 hover:text-red-600 p-1 transition">
+                                        <i class="fa-solid fa-trash-can text-[10px]"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(flowGroup);
+            }
+
+            selectEmail(currentEmailIndex);
+        }
+
+        function toggleGroup(element) {
+            const items = element.parentElement.nextElementSibling;
+            const chevron = element.querySelector('.fa-chevron-down');
+            items.classList.toggle('hidden');
+            chevron.classList.toggle('-rotate-90');
+        }
+
+        function selectEmail(index) {
+            currentEmailIndex = index;
+            const item = emails[index];
+
+            document.querySelectorAll('.email-item').forEach(el => {
+                el.classList.remove('bg-teal-50', 'border-l-4', 'border-teal-600', 'text-teal-900', 'font-semibold');
+                el.classList.add('text-gray-600');
+            });
+            const selectedEl = document.getElementById(`item-${index}`);
+            if (selectedEl) {
+                selectedEl.classList.add('bg-teal-50', 'border-l-4', 'border-teal-600', 'text-teal-900', 'font-semibold');
+            }
+
+            document.getElementById('currentTitle').innerHTML = `
+                <span class="text-teal-700">${item.flow}</span> 
+                <i class="fa-solid fa-chevron-right text-xs text-gray-400"></i> 
+                <span>${item.action.replace('Send_an_email_', '').replace(/_/g, ' ')}</span>
+            `;
+            document.getElementById('currentSubject').innerText = `Assunto: ${item.subjectPreview || item.subject}`;
+
+            const badgeStatus = document.getElementById('badgeStatus');
+            if (item.status === 'OK') {
+                badgeStatus.className = 'bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-semibold';
+                badgeStatus.innerText = 'OK - Implementado';
+            } else {
+                badgeStatus.className = 'bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded font-semibold';
+                badgeStatus.innerText = 'Sugestão de E-mail';
+            }
+
+            const headerColor = item.color || '#1a36aa';
+            document.getElementById('emailHeader').style.backgroundColor = headerColor;
+            document.getElementById('headerColorInput').value = headerColor;
+            document.getElementById('emailHeaderTitle').innerText = item.headerTitle;
+
+            document.getElementById('emailBodyContainer').innerHTML = item.bodyPreview;
+            document.getElementById('rawHtmlTextarea').value = buildFullHtmlCode(item);
+        }
+
+        function changeHeaderColor(color) {
+            emails[currentEmailIndex].color = color;
+            document.getElementById('emailHeader').style.backgroundColor = color;
+            document.getElementById('headerColorInput').value = color;
+            document.getElementById('rawHtmlTextarea').value = buildFullHtmlCode(emails[currentEmailIndex]);
+            showToast("Cor do cabeçalho atualizada!");
+        }
+
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            const btn = document.getElementById('btnToggleEdit');
+            const lbl = document.getElementById('lblEditBtn');
+            const bodyEl = document.getElementById('emailBodyContainer');
+            const titleEl = document.getElementById('emailHeaderTitle');
+            const toolbar = document.getElementById('formattingToolbar');
+
+            if (isEditMode) {
+                btn.className = "bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-2.5 py-1.5 rounded-md font-semibold flex items-center gap-1 transition shadow-sm";
+                lbl.innerText = "Salvar Edição";
+                bodyEl.contentEditable = "true";
+                titleEl.contentEditable = "true";
+                bodyEl.classList.add('editable-active');
+                titleEl.classList.add('editable-active');
+                toolbar.classList.remove('hidden');
+                toolbar.classList.add('flex');
+                showToast("Modo edição ativado! Use a barra de formatação e edite o texto.");
+            } else {
+                btn.className = "bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs px-2.5 py-1.5 rounded-md font-semibold flex items-center gap-1 transition";
+                lbl.innerText = "Ativar Edição";
+                bodyEl.contentEditable = "false";
+                titleEl.contentEditable = "false";
+                bodyEl.classList.remove('editable-active');
+                titleEl.classList.remove('editable-active');
+                toolbar.classList.remove('flex');
+                toolbar.classList.add('hidden');
+                
+                updateFromVisual();
+                showToast("Alterações salvas com sucesso!");
+            }
+        }
+
+        function updateFromVisual() {
+            const bodyEl = document.getElementById('emailBodyContainer');
+            const titleEl = document.getElementById('emailHeaderTitle');
+            
+            emails[currentEmailIndex].headerTitle = titleEl.innerText;
+            emails[currentEmailIndex].bodyPreview = bodyEl.innerHTML;
+            emails[currentEmailIndex].body = bodyEl.innerHTML;
+
+            document.getElementById('rawHtmlTextarea').value = buildFullHtmlCode(emails[currentEmailIndex]);
+        }
+
+        function buildFullHtmlCode(item) {
+            const color = item.color || '#1a36aa';
+            const title = item.headerTitle || 'Título';
+            return `<div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 650px; border: 1px solid #dcdcdc; border-radius: 8px; background-color: #fafafa; margin: 10px 0;">
+    <div style="background-color: ${color}; color: #ffffff; padding: 16px 24px; font-size: 18px; font-weight: bold; border-top-left-radius: 7px; border-top-right-radius: 7px;">
+        ${title}
+    </div>
+    <div style="padding: 24px; color: #333333; font-size: 14px; line-height: 1.6;">
+        ${item.body}
+    </div>
+</div>`;
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            const btnVisual = document.getElementById('btnViewVisual');
+            const btnCode = document.getElementById('btnViewCode');
+            const visualContainer = document.getElementById('visualContainer');
+            const codeContainer = document.getElementById('codeContainer');
+
+            if (tab === 'visual') {
+                btnVisual.classList.add('active');
+                btnCode.classList.remove('active');
+                visualContainer.classList.remove('hidden');
+                codeContainer.classList.add('hidden');
+            } else {
+                btnCode.classList.add('active');
+                btnVisual.classList.remove('active');
+                visualContainer.classList.add('hidden');
+                codeContainer.classList.remove('hidden');
+                codeContainer.classList.add('flex');
+            }
+        }
+
+        function addNewFlowPrompt() {
+            const flowName = prompt("Digite o nome do novo fluxo de trabalho:");
+            if (!flowName || !flowName.trim()) return;
+
+            const actionName = prompt("Digite o nome do primeiro e-mail/ação deste fluxo:");
+            if (!actionName || !actionName.trim()) return;
+
+            const newEmail = {
+                id: emails.length + 1,
+                flow: flowName.trim(),
+                status: "Sugestão",
+                action: actionName.trim().replace(/\s+/g, '_'),
+                subject: "Assunto do Novo E-mail - CIT 00@{triggerBody()?['ID']}",
+                subjectPreview: "Assunto do Novo E-mail - CIT 000036",
+                headerTitle: actionName.trim(),
+                color: "#008080",
+                body: "<p>Olá,</p><p>Conteúdo do novo e-mail para o fluxo " + flowName + ".</p>",
+                bodyPreview: "<p>Olá,</p><p>Conteúdo do novo e-mail para o fluxo " + flowName + ".</p>"
+            };
+
+            emails.push(newEmail);
+            currentEmailIndex = emails.length - 1;
+            initTree();
+            showToast("Novo fluxo e e-mail adicionados!");
+        }
+
+        function addNewEmailPrompt(flowName) {
+            const actionName = prompt("Digite o nome do e-mail/ação para o fluxo '" + flowName + "':");
+            if (!actionName || !actionName.trim()) return;
+
+            const cleanAction = actionName.trim();
+            const newEmail = {
+                id: emails.length + 1,
+                flow: flowName,
+                status: "Sugestão",
+                action: "Send_an_email_" + cleanAction.replace(/\s+/g, '_'),
+                subject: "Assunto - " + cleanAction,
+                subjectPreview: "Assunto - " + cleanAction,
+                headerTitle: cleanAction,
+                color: "#008080",
+                body: "<p></p>",
+                bodyPreview: "<p></p>"
+            };
+
+            emails.push(newEmail);
+            currentEmailIndex = emails.length - 1;
+            initTree();
+            showToast(`Novo e-mail '${cleanAction}' adicionado ao fluxo!`);
+        }
+
+        function deleteEmail(index) {
+            if (emails.length <= 1) {
+                alert("Você não pode excluir o último e-mail restante.");
+                return;
+            }
+            if (confirm("Tem certeza que deseja excluir este e-mail?")) {
+                emails.splice(index, 1);
+                if (currentEmailIndex >= emails.length) {
+                    currentEmailIndex = emails.length - 1;
+                }
+                initTree();
+                showToast("E-mail excluído com sucesso!");
+            }
+        }
+
+        function copyCode() {
+            const text = document.getElementById('rawHtmlTextarea').value;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast("Código HTML copiado para a área de transferência!");
+            });
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        function exportDashboardHtml() {
+            const fullDoc = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+            const blob = new Blob([fullDoc], { type: 'text/html;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'dashboard_emails_itaipu_completo.html';
+            link.click();
+            showToast("Dashboard exportado com sucesso!");
+        }
+
+        function filterEmails() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            document.querySelectorAll('.email-item').forEach(el => {
+                const text = el.innerText.toLowerCase();
+                el.style.display = text.includes(query) ? 'flex' : 'none';
+            });
+        }
+
+        window.onclick = function(e) {
+            if (!e.target.closest('.relative')) {
+                const dd = document.getElementById('fieldDropdown');
+                if (dd) dd.classList.add('hidden');
+            }
+        }
+
+        window.onload = function() {
+            initDropdown();
+            initTree();
+        };
+    </script>
+</body>
+</html>
